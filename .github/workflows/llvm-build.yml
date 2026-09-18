@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+
+on:
+  workflow_dispatch:
+
+jobs:
+  llvm-build:
+    runs-on: ubuntu-26.04
+    container:
+      image: ubuntu:26.04
+      options: --cap-add=SYS_ADMIN
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            cmake \
+            curl \
+            ninja-build \
+            python3 \
+            xz-utils
+
+      - run: |
+          curl -fsSL --retry 3 -o llvm.tar.xz \
+            https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.1/llvm-project-23.1.1.src.tar.xz
+
+          echo "ebe9be46fe8756d58c5b198ffad0fa2a766257add81a4dc52179bfacc7888ee6  llvm.tar.xz" | sha256sum -c
+
+      - run: |
+          unshare --ipc --net --uts -- \
+            .github/workflows/llvm_build.sh \
+            --llvm-tarball llvm.tar.xz \
+            --llvm-version 23.1.1 \
+            --output llvm-local.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: llvm-local
+          path: llvm-local.deb
+          if-no-files-found: error

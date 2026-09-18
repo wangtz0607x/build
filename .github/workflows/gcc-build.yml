@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: MIT
+
+on:
+  workflow_dispatch:
+
+jobs:
+  gcc-build:
+    runs-on: ubuntu-26.04
+    container:
+      image: ubuntu:26.04
+      options: --cap-add=SYS_ADMIN
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            ca-certificates \
+            curl \
+            xz-utils
+
+      - run: |
+          curl -fsSL --retry 3 -o binutils.tar.xz \
+            https://ftp.gnu.org/gnu/binutils/binutils-2.47.tar.xz
+
+          echo "154ab23b60070e8f27013c22977f1129425d67d1e8acd6e13010e617811e4cff  binutils.tar.xz" | sha256sum -c
+
+          curl -fsSL --retry 3 -o gcc.tar.xz \
+            https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.xz
+
+          echo "e6738e29597f733270731aa90600f37ffdc045079dfc27ec7e8192cc81085c3e  gcc.tar.xz" | sha256sum -c
+
+          curl -fsSL --retry 3 -o gmp.tar.xz \
+            https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz
+
+          echo "a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898  gmp.tar.xz" | sha256sum -c
+
+          curl -fsSL --retry 3 -o mpfr.tar.xz \
+            https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.2.tar.xz
+
+          echo "b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01  mpfr.tar.xz" | sha256sum -c
+
+          curl -fsSL --retry 3 -o mpc.tar.xz \
+            https://ftp.gnu.org/gnu/mpc/mpc-1.4.1.tar.xz
+
+          echo "91204cd32f164bd3b7c992d4a6a8ce6519511aadab30f78b6982d0bf8d73e931  mpc.tar.xz" | sha256sum -c
+
+      - run: |
+          unshare --ipc --net --uts -- \
+            .github/workflows/gcc_build.sh \
+            --binutils-tarball binutils.tar.xz \
+            --binutils-version 2.47 \
+            --gcc-tarball gcc.tar.xz \
+            --gcc-version 16.2.0 \
+            --gmp-tarball gmp.tar.xz \
+            --gmp-version 6.3.0 \
+            --mpfr-tarball mpfr.tar.xz \
+            --mpfr-version 4.2.2 \
+            --mpc-tarball mpc.tar.xz \
+            --mpc-version 1.4.1 \
+            --output gcc-local.deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gcc-local
+          path: gcc-local.deb
+          if-no-files-found: error
